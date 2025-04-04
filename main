@@ -1,0 +1,24 @@
+import RPi.GPIO as GPIO
+import time
+
+# Set the GPIO mode
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
+# Define the GPIO pin
+LED_PIN = 16
+
+# Set the pin as output
+GPIO.setup(LED_PIN, GPIO.OUT)
+
+# Blink the LED 10 times
+for i in range(10):
+    GPIO.output(LED_PIN, GPIO.HIGH)  # Turn LED on
+    print("LED ON")
+    time.sleep(0.5)
+    GPIO.output(LED_PIN, GPIO.LOW)   # Turn LED off
+    print("LED OFF")
+    time.sleep(0.5)
+
+# Cleanup
+GPIO.cleanup()
