@@ -1,40 +1,24 @@
-
-# Moter 1
-#GPIO 26, IN4 
-#GPIO 19, IN3
-#GPIO 13, ENA
-
-#Moter 2
-#GPIO 5, IN1
-#GPIO 6, IN2
-#GPIO 12, ENB
-
-
 import RPi.GPIO as GPIO
 import time
-
-
 
 # Set the GPIO mode
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
-
-# Define the GPIO pin
+# Define the GPIO pins
 LED_PIN = 16
-# Moter 1
-IN4 = 26
+
+# Motor 1 (Left)
 IN3 = 19
+IN4 = 26
 ENA = 13
 
-#Moter 2
+# Motor 2 (Right)
 IN1 = 5
 IN2 = 6
 ENB = 12
 
-
-
-# Set the pin as output
+# Setup GPIO pins as output
 GPIO.setup(LED_PIN, GPIO.OUT)
 GPIO.setup(IN1, GPIO.OUT)
 GPIO.setup(IN2, GPIO.OUT)
@@ -43,24 +27,31 @@ GPIO.setup(IN4, GPIO.OUT)
 GPIO.setup(ENA, GPIO.OUT)
 GPIO.setup(ENB, GPIO.OUT)
 
+# Enable the motors (set ENA and ENB high)
 GPIO.output(ENA, GPIO.HIGH)
 GPIO.output(ENB, GPIO.HIGH)
-# Blink the LED 10 times
-for i in range(10):
-    GPIO.output(LED_PIN, GPIO.HIGH)  # Turn LED on
-    print("LED ON")
-    time.sleep(0.5)
-    GPIO.output(LED_PIN, GPIO.LOW)   # Turn LED off
-    print("LED OFF")
-    time.sleep(0.5)
-#FORWARD
-    for i in range(10):
-        GPIO.output(IN1, GPIO.HIGH)
-        GPIO.output(IN2, GPIO.LOW)
-        GPIO.output(IN3, GPIO.HIGH)
-        GPIO.output(IN4, GPIO.LOW)
 
-        
+# Set motors FORWARD
+GPIO.output(IN1, GPIO.HIGH)
+GPIO.output(IN2, GPIO.LOW)
+GPIO.output(IN3, GPIO.HIGH)
+GPIO.output(IN4, GPIO.LOW)
+
+# Blink LED and run motors for 10 cycles
+for i in range(10):
+    GPIO.output(LED_PIN, GPIO.HIGH)
+    print(f"[{i+1}] LED ON - Motors Forward")
+    time.sleep(0.5)
+
+    GPIO.output(LED_PIN, GPIO.LOW)
+    print(f"[{i+1}] LED OFF")
+    time.sleep(0.5)
+
+# Stop motors
+GPIO.output(IN1, GPIO.LOW)
+GPIO.output(IN2, GPIO.LOW)
+GPIO.output(IN3, GPIO.LOW)
+GPIO.output(IN4, GPIO.LOW)
 
 # Cleanup
 GPIO.cleanup()
