@@ -76,7 +76,6 @@ bus = smbus.SMBus(1)
 
 # Device addresses
 MPU6050_Address = 0x68
-ADS7830_Address = 0x48
 
 # MPU6050 Registers
 PWR_MGMT_1   = 0x6B
@@ -124,35 +123,53 @@ def read_raw_data(addr):
     return value
 
 # ADS7830 class to handle analog input readings
-class ADS7830():
-    def set_channel(self, channel):
+class ADS7830:
+    def __init__(self, address=0x4b):
+        self.address = address
+
+    def read_adc(self, channel):
+        """
+        Read ADC value from specified differential channel (0–7).
+        Differential pairs:
+            0: CH0 - CH1
+            1: CH2 - CH3
+            2: CH4 - CH5
+            3: CH6 - CH7
+            4: CH1 - CH0
+            5: CH3 - CH2
+            6: CH5 - CH4
+            7: CH7 - CH6
+        """
+        # Build command based on channel
         if channel == 0:
-            COMMAND_SET = (ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_0_1)
+            cmd = ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_0_1
         elif channel == 1:
-            COMMAND_SET = (ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_2_3)
+            cmd = ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_2_3
         elif channel == 2:
-            COMMAND_SET = (ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_4_5)
+            cmd = ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_4_5
         elif channel == 3:
-            COMMAND_SET = (ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_6_7)
+            cmd = ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_6_7
         elif channel == 4:
-            COMMAND_SET = (ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_1_0)
+            cmd = ADS7830_CMD_SD_DIFF | 0x40  # CH1 - CH0
         elif channel == 5:
-            COMMAND_SET = (ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_3_2)
+            cmd = ADS7830_CMD_SD_DIFF | 0x50  # CH3 - CH2
         elif channel == 6:
-            COMMAND_SET = (ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_5_4)
+            cmd = ADS7830_CMD_SD_DIFF | 0x60  # CH5 - CH4
         elif channel == 7:
-            COMMAND_SET = (ADS7830_CMD_SD_DIFF | ADS7830_CMD_DIFF_CHANNEL_7_6)
+            cmd = ADS7830_CMD_SD_DIFF | 0x70  # CH7 - CH6
+        else:
+            raise ValueError("Channel must be 0–7")
 
-        bus.write_byte(ADS7830_Address, COMMAND_SET)
+        # Write command and read ADC value
+        bus.write_byte(self.address, cmd)
+        time.sleep(0.01)  # Short delay to allow ADC conversion
+        result = bus.read_byte(self.address)
 
-    def read_adc(self):
-        data = bus.read_byte(ADS7830_Address)
-        raw_adc = data
-        return {'r': raw_adc}
+        return result
 
 # Initialize both sensors
 MPU_Init()
-ads7830 = ADS7830()
+ads = ADS7830()
 
 def forward():
     GPIO.output(IN1, GPIO.HIGH)
@@ -198,7 +215,8 @@ def set_speed(speed):
     # Speed should be between 0-100
     pwm_a.ChangeDutyCycle(speed)
     pwm_b.ChangeDutyCycle(speed)
-
+    
+#Main COde
 try:
     while True:
         # Get current distance
@@ -231,20 +249,11 @@ try:
         
         #Reads position of joystick
         
-        ads7830.set_channel(0)
-        ads7830.set_command()
-        time.sleep(0.1)
-        adc_x = ads7830.read_adc()
-        
-        ads7830.set_channel(2)
-        ads7830.set_command()
-        time.sleep(0.1)
-        adc_y = ads7830.read_adc()
-        
-        print ("Digital Value of Analog Input : %d "%(adc['r']))
-        print (" ************************************************** ")
-        time.sleep(0.8)
-        
+ 
+        adc0 = ads.read_adc(0)
+        adc1 = ads.read_adc(1)
+        print(f"ADC0: {adc0}, ADC1: {adc1}")
+        sleep(1)
     '''    if current_distance > safe_distance:
             forward()
         elif current_distance < safe_distance and current_distance > safe_distance/2:
@@ -287,7 +296,7 @@ try:
             time.sleep(1)
             stop()
             '''
-    time.sleep(0.1)  # Short delay between measurements
+    time.sleep(2)  # Short delay between measurements
 
 except KeyboardInterrupt:
     print("Program stopped by user")
@@ -295,3 +304,5 @@ except KeyboardInterrupt:
     pwm_a.stop()
     pwm_b.stop()
     GPIO.cleanup()
+
+split this into the main and another file to include it
