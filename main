@@ -37,6 +37,12 @@ try:
         adc0 = ads.read_adc(0)
         adc1 = ads.read_adc(1)
         print(f"ADC0: {adc0}, ADC1: {adc1}")
+        
+        if adc0 > 240:
+            robot.forward()
+            print("Moving Foward")
+        else:
+            robot.stop()
 
         sleep(1)
 
