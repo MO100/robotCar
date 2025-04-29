@@ -1,7 +1,10 @@
-# main.py
-
 from time import sleep
 import robot_module as robot
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from collections import deque
+import time
+import threading
 
 # Initialize Sensors
 robot.MPU_Init()
@@ -9,38 +12,105 @@ ads = robot.ADS7830()
 
 safe_distance = 20  # cm
 
-try:
-    while True:
-        # Read ultrasonic distance
-        distance = robot.get_distance()
-        print(f"Distance: {distance} cm")
+# Plotting setup
+time_buffer = deque()
+distance_buffer = deque()
+start_time = time.time()
 
-        # Read MPU6050
-        acc_x = robot.read_raw_data(robot.ACCEL_XOUT_H)
-        acc_y = robot.read_raw_data(robot.ACCEL_YOUT_H)
-        acc_z = robot.read_raw_data(robot.ACCEL_ZOUT_H)
-        gyro_x = robot.read_raw_data(robot.GYRO_XOUT_H)
-        gyro_y = robot.read_raw_data(robot.GYRO_YOUT_H)
-        gyro_z = robot.read_raw_data(robot.GYRO_ZOUT_H)
+# Setup the plot
+fig = plt.figure(figsize=(12, 6))
 
-        Ax = acc_x / 16384.0
-        Ay = acc_y / 16384.0
-        Az = acc_z / 16384.0
+# Subplot 1: Distance vs Time
+ax1 = fig.add_subplot(1, 2, 1)
+line, = ax1.plot([], [], lw=2)
+ax1.set_title("Ultrasonic Distance (Last 5 sec)")
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("Distance (cm)")
+ax1.set_ylim(0, 100)
 
-        Gx = gyro_x / 131.0
-        Gy = gyro_y / 131.0
-        Gz = gyro_z / 131.0
+# Subplot 2: 3D Orientation
+ax2 = fig.add_subplot(1, 2, 2, projection='3d')
+ax2.set_title("MPU6050 Orientation")
 
-        print(f"Gx={Gx:.2f}°/s Gy={Gy:.2f}°/s Gz={Gz:.2f}°/s Ax={Ax:.2f}g Ay={Ay:.2f}g Az={Az:.2f}g")
-        
-        # Read Joystick values
-        adc0 = ads.read_adc(0)
-        adc1 = ads.read_adc(1)
-        print(f"ADC0: {adc0}, ADC1: {adc1}")
+# Global variables shared with animation
+distance = 0
+Ax = Ay = Az = 0
 
-        sleep(1)
+# Animation update function
+def update_plot(frame):
+    global Ax, Ay, Az, distance
 
-except KeyboardInterrupt:
-    print("Program stopped by user.")
-    robot.stop()
-    robot.cleanup()
+    current_time = time.time() - start_time
+
+    time_buffer.append(current_time)
+    distance_buffer.append(distance)
+
+    # Keep last 5 seconds
+    while time_buffer and (current_time - time_buffer[0]) > 5:
+        time_buffer.popleft()
+        distance_buffer.popleft()
+
+    # Update distance subplot
+    line.set_data(time_buffer, distance_buffer)
+    ax1.set_xlim(max(0, current_time - 5), current_time)
+    ax1.set_ylim(0, max(50, max(distance_buffer) + 10))
+
+    # Update orientation subplot
+    ax2.cla()
+    ax2.set_title("MPU6050 Orientation")
+    ax2.quiver(0, 0, 0, Ax, Ay, Az, length=1, color='r', normalize=True)
+    ax2.set_xlim([-1, 1])
+    ax2.set_ylim([-1, 1])
+    ax2.set_zlim([-1, 1])
+    ax2.set_xlabel('X')
+    ax2.set_ylabel('Y')
+    ax2.set_zlabel('Z')
+
+    return line,
+
+# Start sensor loop in separate thread
+def sensor_loop():
+    global Ax, Ay, Az, distance
+
+    try:
+        while True:
+            distance = robot.get_distance()
+            print(f"Distance: {distance} cm")
+
+            acc_x = robot.read_raw_data(robot.ACCEL_XOUT_H)
+            acc_y = robot.read_raw_data(robot.ACCEL_YOUT_H)
+            acc_z = robot.read_raw_data(robot.ACCEL_ZOUT_H)
+
+            Ax = acc_x / 16384.0
+            Ay = acc_y / 16384.0
+            Az = acc_z / 16384.0
+
+            print(f"Accelerometer: Ax={Ax:.2f}g Ay={Ay:.2f}g Az={Az:.2f}g")
+
+            adc0 = ads.read_adc(0)
+            adc1 = ads.read_adc(1)
+            print(f"ADC0: {adc0}, ADC1: {adc1}")
+
+            if adc0 > 240:
+                robot.forward()
+                print("Moving Forward")
+            else:
+                robot.stop()
+
+            sleep(1)
+    except KeyboardInterrupt:
+        print("Sensor loop interrupted.")
+        robot.stop()
+        robot.cleanup()
+
+# Start animation and plotting
+ani = animation.FuncAnimation(fig, update_plot, interval=200)
+
+# Start sensor reading in background thread
+sensor_thread = threading.Thread(target=sensor_loop)
+sensor_thread.daemon = True
+sensor_thread.start()
+
+plt.tight_layout()
+plt.show()
+
