@@ -4,6 +4,7 @@ import RPi.GPIO as GPIO
 import smbus
 import time
 
+
 # Set the GPIO mode
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -25,10 +26,6 @@ ENB = 12
 TRIG = 23
 ECHO = 24
 
-# MPU Sensor Pins (not explicitly used here but reserved)
-SDA = 2
-SCL = 3
-
 # Setup GPIO pins
 GPIO.setup(LED_PIN, GPIO.OUT)
 GPIO.setup(IN1, GPIO.OUT)
@@ -40,12 +37,15 @@ GPIO.setup(ENB, GPIO.OUT)
 GPIO.setup(TRIG, GPIO.OUT)
 GPIO.setup(ECHO, GPIO.IN)
 
+'''
 # Initialize PWM
 pwm_a = GPIO.PWM(ENA, 1000)  # 1000Hz
 pwm_b = GPIO.PWM(ENB, 1000)
-pwm_a.start(50)
-pwm_b.start(50)
-
+pwm_a.start(100)
+pwm_b.start(100)
+'''
+GPIO.output(ENA, GPIO.HIGH)
+GPIO.output(ENB, GPIO.HIGH)
 # I2C bus
 bus = smbus.SMBus(1)
 
@@ -126,6 +126,35 @@ def get_distance():
 
     return distance
 
+def calibrate_mpu(samples=1000):
+    global accXoffset, accYoffset, accZoffset
+    global gyroXoffset, gyroYoffset, gyroZoffset
+
+    print("Starting MPU6050 calibration...")
+    accXsum = accYsum = accZsum = 0
+    gyroXsum = gyroYsum = gyroZsum = 0
+
+    for i in range(samples):
+        accXsum += read_raw_data(ACCEL_XOUT_H)
+        accYsum += read_raw_data(ACCEL_YOUT_H)
+        accZsum += read_raw_data(ACCEL_ZOUT_H) - 16384  # Subtract 1g
+        gyroXsum += read_raw_data(GYRO_XOUT_H)
+        gyroYsum += read_raw_data(GYRO_YOUT_H)
+        gyroZsum += read_raw_data(GYRO_ZOUT_H)
+        time.sleep(0.001)
+
+    accXoffset = accXsum / samples
+    accYoffset = accYsum / samples
+    accZoffset = accZsum / samples
+    gyroXoffset = gyroXsum / samples
+    gyroYoffset = gyroYsum / samples
+    gyroZoffset = gyroZsum / samples
+
+    print("Calibration complete.")
+    print(f"Acc Offsets: X={accXoffset:.2f}, Y={accYoffset:.2f}, Z={accZoffset:.2f}")
+    print(f"Gyro Offsets: X={gyroXoffset:.2f}, Y={gyroYoffset:.2f}, Z={gyroZoffset:.2f}")
+
+
 def forward():
     GPIO.output(IN1, GPIO.HIGH)
     GPIO.output(IN2, GPIO.LOW)
@@ -169,3 +198,7 @@ def cleanup():
     pwm_a.stop()
     pwm_b.stop()
     GPIO.cleanup()
+    
+    
+
+
