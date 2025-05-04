@@ -1,0 +1,50 @@
+# pip install mpu6050-raspberrypi filterpy
+
+from mpu6050 import mpu6050
+from filterpy.kalman import KalmanFilter
+import time
+
+# Initialize MPU6050
+sensor = mpu6050(0x68)
+
+# Kalman filter setup: 1D for each axis
+def create_kalman():
+    kf = KalmanFilter(dim_x=2, dim_z=1)
+    kf.x = [0., 0.]           # Initial state (position, velocity)
+    kf.F = [[1., 0.1],        # State transition matrix
+            [0., 1.]]         
+    kf.H = [[1., 0.]]         # Measurement function
+    kf.P *= 1000.             # Initial uncertainty
+    kf.R = 10                 # Measurement noise
+    kf.Q = [[0.01, 0.],       # Process noise
+            [0., 0.01]]
+    return kf
+
+kf_x = create_kalman()
+kf_y = create_kalman()
+
+# Constants
+g = 9.80665
+accel_scale = 16384.0  # For ±2g
+
+print("Tracking position... Ctrl+C to stop.")
+try:
+    while True:
+        accel_data = sensor.get_accel_data()
+        ax = accel_data['x'] * g
+        ay = accel_data['y'] * g
+
+        # Kalman update (measurement = acceleration)
+        kf_x.predict()
+        kf_x.update(ax)
+        kf_y.predict()
+        kf_y.update(ay)
+
+        x_pos = kf_x.x[0]
+        y_pos = kf_y.x[0]
+
+        print(f"x = {x_pos:.2f} m, y = {y_pos:.2f} m")
+        time.sleep(0.1)
+
+except KeyboardInterrupt:
+    print("Stopped.")
