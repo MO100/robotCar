@@ -28,6 +28,9 @@ ax1.set_ylabel("Distance (cm)")
 ax1.set_ylim(0, 100)
 ax1.grid(True)
 
+robot_theta = 0
+
+'''
 # Subplot 2: Room Map
 ax2 = fig.add_subplot(1, 2, 2)
 ax2.set_title("Room Map (Live)")
@@ -35,14 +38,14 @@ ax2.set_xlim(-200, 200)
 ax2.set_ylim(-200, 200)
 ax2.set_aspect('equal')
 ax2.grid(True)
-
+ 
 # Robot position tracking
 robot_x, robot_y = 0, 0
 robot_theta = 0  # Facing right (0 degrees)
 robot_trail = deque(maxlen=100)  # Store past positions
 robot_arrow = ax2.arrow(0, 0, 10, 0, head_width=10, head_length=15, fc='r', ec='r')
 obstacles = []
-
+'''
 # Shared variables
 distance = 0
 running = True
@@ -58,7 +61,7 @@ def update_plots(frame):
     distance_buffer.append(distance)
     line.set_data(time_buffer, distance_buffer)
     ax1.set_xlim(max(0, current_time - 5), current_time)
-
+'''
     # Update room map
     robot_trail.append((robot_x, robot_y))
     ax2.clear()
@@ -82,7 +85,7 @@ def update_plots(frame):
         obstacle_x = robot_x + distance * math.cos(math.radians(robot_theta))
         obstacle_y = robot_y + distance * math.sin(math.radians(robot_theta))
         ax2.plot(obstacle_x, obstacle_y, 'ro')
-        
+       ''' 
 def tic():
     """Starts a timer and returns the start time."""
     return time.perf_counter()
@@ -114,9 +117,9 @@ def sensor_loop():
             
             
             # Accelerometer
-            acc_x = robot.read_raw_data(robot.ACCEL_XOUT_H) / 16384.0
+            acc_x = robot.read_raw_data(robot.ACCEL_XOUT_H) / 16384.0                                            
             acc_y = robot.read_raw_data(robot.ACCEL_YOUT_H) / 16384.0
-            
+                                                
             'acc_z = robot.read_raw_data(robot.ACCEL_ZOUT_H) / 16384.0'
             '''
             # Gyroscope (use correct scale factor: 16.4 for ±2000°/s)
