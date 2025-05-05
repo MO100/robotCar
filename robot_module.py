@@ -12,15 +12,17 @@ GPIO.setwarnings(False)
 # Define the GPIO pins
 LED_PIN = 16
 
+
+
 # Motor 1 (Left)
 IN3 = 19
 IN4 = 26
-ENA = 13
+ENA = 12
 
 # Motor 2 (Right)
 IN1 = 5
 IN2 = 6
-ENB = 12
+ENB = 13
 
 # Ultrasonic Sensor Pins
 TRIG = 23
@@ -36,6 +38,7 @@ GPIO.setup(ENA, GPIO.OUT)
 GPIO.setup(ENB, GPIO.OUT)
 GPIO.setup(TRIG, GPIO.OUT)
 GPIO.setup(ECHO, GPIO.IN)
+GPIO.setup(SW, GPIO.IN)
 
 '''
 # Initialize PWM
@@ -107,6 +110,8 @@ def read_raw_data(addr):
         value = value - 65536
     return value
 
+    
+
 def get_distance():
     GPIO.output(TRIG, True)
     time.sleep(0.00001)
@@ -170,17 +175,17 @@ def backward():
     GPIO.output(LED_PIN, GPIO.LOW)
 
 def left():
-    GPIO.output(IN1, GPIO.HIGH)
-    GPIO.output(IN2, GPIO.LOW)
-    GPIO.output(IN3, GPIO.LOW)
-    GPIO.output(IN4, GPIO.HIGH)
-    GPIO.output(LED_PIN, GPIO.HIGH)
-
-def right():
     GPIO.output(IN1, GPIO.LOW)
     GPIO.output(IN2, GPIO.HIGH)
     GPIO.output(IN3, GPIO.HIGH)
     GPIO.output(IN4, GPIO.LOW)
+    GPIO.output(LED_PIN, GPIO.LOW)
+
+def right():
+    GPIO.output(IN1, GPIO.HIGH)
+    GPIO.output(IN2, GPIO.LOW)
+    GPIO.output(IN3, GPIO.LOW)
+    GPIO.output(IN4, GPIO.HIGH)
     GPIO.output(LED_PIN, GPIO.HIGH)
 
 def stop():
