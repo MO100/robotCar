@@ -107,9 +107,9 @@ def sensor_loop():
 
             adc0 = ads.read_adc(0)
             adc1 = ads.read_adc(1)
-            SW_state = robot.get_SW()  # ← Corrected logic here
+            
+            '''
 
-           
             if adc0 < 10 and adc1 < 10:
                 robot.stop()
             elif adc0 > 240:
@@ -126,7 +126,7 @@ def sensor_loop():
                 robot.stop()
 
             # === Mode 2: Autonomous obstacle avoidance ===
-            '''
+                '''
                 
             robot.forward()
 
@@ -144,9 +144,10 @@ def sensor_loop():
                     if robot.get_distance() < 20:
                         robot.stop()
                         print("No path available")
+                        exit()
 
             robot.forward()
-            '''
+            
             sleep(0.1)
 
     except KeyboardInterrupt:
