@@ -1,21 +1,20 @@
 import time
 from time import sleep
-import robot_module as robot
+import math
+import threading
+from collections import deque
 import matplotlib.pyplot as plt
 from matplotlib import animation
-import threading
-import math
-from collections import deque
 
-# Initialize Sensors
+import robot_module as robot
+
+# === Initialize Sensors ===
 robot.MPU_Init()
 robot.calibrate_mpu()
 ads = robot.ADS7830()
 
-# Setup interactive mode
+# === Plot Setup ===
 fig = plt.figure(figsize=(12, 6))
-
-start = 0
 
 # Subplot 1: Distance vs Time
 ax1 = fig.add_subplot(1, 2, 1)
@@ -28,9 +27,6 @@ ax1.set_ylabel("Distance (cm)")
 ax1.set_ylim(0, 100)
 ax1.grid(True)
 
-robot_theta = 0
-
-'''
 # Subplot 2: Room Map
 ax2 = fig.add_subplot(1, 2, 2)
 ax2.set_title("Room Map (Live)")
@@ -38,168 +34,145 @@ ax2.set_xlim(-200, 200)
 ax2.set_ylim(-200, 200)
 ax2.set_aspect('equal')
 ax2.grid(True)
- 
-# Robot position tracking
+
+# === Robot Position Tracking ===
 robot_x, robot_y = 0, 0
-robot_theta = 0  # Facing right (0 degrees)
-robot_trail = deque(maxlen=100)  # Store past positions
-robot_arrow = ax2.arrow(0, 0, 10, 0, head_width=10, head_length=15, fc='r', ec='r')
-obstacles = []
-'''
-# Shared variables
+robot_theta = 0  # Angle in degrees (0 = facing right)
+robot_trail = deque(maxlen=100)
+
+# === Shared Variables ===
 distance = 0
 running = True
 start_time = time.time()
 
-# Update plot function for FuncAnimation
-def update_plots(frame):
-    global robot_x, robot_y, robot_theta
 
-    # Update distance plot
+def tic():
+    return time.perf_counter()
+
+
+def toc(start):
+    end = time.perf_counter()
+    return end - start
+
+
+# === Plot Update Function ===
+def update_plots(frame):
     current_time = time.time() - start_time
     time_buffer.append(current_time)
     distance_buffer.append(distance)
     line.set_data(time_buffer, distance_buffer)
     ax1.set_xlim(max(0, current_time - 5), current_time)
-'''
-    # Update room map
-    robot_trail.append((robot_x, robot_y))
+
+    # Update map plot
     ax2.clear()
     ax2.set_title("Room Map (Live)")
     ax2.set_xlim(-200, 200)
     ax2.set_ylim(-200, 200)
     ax2.grid(True)
 
+    # Trail
+    robot_trail.append((robot_x, robot_y))
     if len(robot_trail) > 1:
         trail_x, trail_y = zip(*robot_trail)
         ax2.plot(trail_x, trail_y, 'g-', alpha=0.5)
 
+    # Robot heading arrow
     arrow_length = 20
     end_x = robot_x + arrow_length * math.cos(math.radians(robot_theta))
     end_y = robot_y + arrow_length * math.sin(math.radians(robot_theta))
-    ax2.arrow(robot_x, robot_y,
-              end_x - robot_x, end_y - robot_y,
+    ax2.arrow(robot_x, robot_y, end_x - robot_x, end_y - robot_y,
               head_width=10, head_length=15, fc='r', ec='r')
 
+    # Obstacle dot
     if distance < 100:
-        obstacle_x = robot_x + distance * math.cos(math.radians(robot_theta))
-        obstacle_y = robot_y + distance * math.sin(math.radians(robot_theta))
-        ax2.plot(obstacle_x, obstacle_y, 'ro')
-       ''' 
-def tic():
-    """Starts a timer and returns the start time."""
-    return time.perf_counter()
-
-def toc(start_time):
-    """Stops the timer and prints the elapsed time.
-    
-    Args:
-        start_time: The time returned by tic() when the timer was started.
-    """
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    print(f"Elapsed time: {elapsed_time:.4f} seconds")
-    return(elapsed_time)
+        obs_x = robot_x + distance * math.cos(math.radians(robot_theta))
+        obs_y = robot_y + distance * math.sin(math.radians(robot_theta))
+        ax2.plot(obs_x, obs_y, 'ro')
 
 
-
-# Sensor loop that collects sensor data
+# === Sensor Loop ===
 def sensor_loop():
-    global robot_x, robot_y, robot_theta, distance, running, start
+    global robot_x, robot_y, robot_theta, distance, running
 
-    start = tic()  # Initialize timing before loop
-
+    start = tic()
     try:
         while running:
-            # Get sensor data
+            # Read sensors
             distance = robot.get_distance()
-            print(f"Distance: {distance} cm")
-            
-            
-            # Accelerometer
-            acc_x = robot.read_raw_data(robot.ACCEL_XOUT_H) / 16384.0                                            
-            acc_y = robot.read_raw_data(robot.ACCEL_YOUT_H) / 16384.0
-                                                
-            'acc_z = robot.read_raw_data(robot.ACCEL_ZOUT_H) / 16384.0'
-            '''
-            # Gyroscope (use correct scale factor: 16.4 for ±2000°/s)
-            G_x = robot.read_raw_data(robot.GYRO_XOUT_H) / 16.4
-            G_y = robot.read_raw_data(robot.GYRO_YOUT_H) / 16.4
-            '''
-            G_z = (robot.read_raw_data(robot.GYRO_ZOUT_H)) / 16.4
-
-            # Calculate time difference
-            deltatime = toc(start)
+            G_z = robot.read_raw_data(robot.GYRO_ZOUT_H) / 16.4
+            dt = toc(start)
             start = tic()
-            '''
-            # Orientation estimate from accelerometer
-            pitch = math.degrees(math.atan2(acc_x, math.sqrt(acc_y**2 + acc_z**2)))
-            roll  = math.degrees(math.atan2(acc_y, math.sqrt(acc_x**2 + acc_z**2)))
-            print(f"Pitch: {pitch:.2f}°, Roll: {roll:.2f}°, G_z: {G_z:.2f}°/s, deltatime: {deltatime:.2f}s")
-            '''
-            # Integrate gyroscope Z-axis to estimate yaw angle
-            robot_theta += G_z * deltatime  # yaw = ∫ angular velocity
-            
-            
-            print(f"RobotTheata: {robot_theta:.2f}")
-            
-                        # Simulated movement
+            robot_theta += G_z * dt
+            robot_theta %= 360  # Keep angle in [0, 360)
+
             adc0 = ads.read_adc(0)
             adc1 = ads.read_adc(1)
-            
-            print(f"J_x: {adc0: .2f}, J_y: {adc1: .2f}")
-            
-            # Movement logic
+            SW_state = robot.get_SW()  # ← Corrected logic here
+
+           
             if adc0 < 10 and adc1 < 10:
                 robot.stop()
-                print("Stopping: Joystick centered or idle")
             elif adc0 > 240:
                 robot.forward()
-                print("Moving Forward")
-                # Update position
-                move_distance = 5  # cm per step
-                robot_x += move_distance * math.cos(math.radians(robot_theta))
-                robot_y += move_distance * math.sin(math.radians(robot_theta))
+                robot_x += 5 * math.cos(math.radians(robot_theta))
+                robot_y += 5 * math.sin(math.radians(robot_theta))
             elif adc0 < 20:
                 robot.backward()
-                print("Moving Backward")
             elif adc1 > 240:
                 robot.left()
-                print("Turning Left")
             elif adc1 < 20:
                 robot.right()
-                print("Turning Right")
             else:
                 robot.stop()
-                print("Stopping: No active joystick direction")
-                        
+
+            # === Mode 2: Autonomous obstacle avoidance ===
+            '''
+                
+            robot.forward()
+
+            if distance < 20:
+                robot.stop()
+                sleep(2)
+                robot.right()
+                sleep(0.4)
+                robot.stop()
+                sleep(1)
+                if robot.get_distance() < 20:
+                    robot.left()
+                    sleep(0.8)
+                    robot.stop()
+                    if robot.get_distance() < 20:
+                        robot.stop()
+                        print("No path available")
+
+            robot.forward()
+            '''
             sleep(0.1)
-            
+
     except KeyboardInterrupt:
         print("Sensor loop interrupted.")
         running = False
         robot.stop()
         robot.cleanup()
 
-# Start sensor thread
+
+# === Start Thread & Animation ===
 sensor_thread = threading.Thread(target=sensor_loop)
 sensor_thread.start()
 
-# Create the animation object (persist it)
 ani = animation.FuncAnimation(fig, update_plots, interval=100)
 
-# Show the plot and start the animation (only once)
+# === Show Plot ===
 try:
     plt.tight_layout()
-    plt.show()  # Show the plot and start the animation
+    plt.show()
 except KeyboardInterrupt:
     print("Visualization interrupted.")
 finally:
-    # Do not exit prematurely
     print("Program running. Press Ctrl+C to exit.")
     while running:
-        sleep(1)  # Keep the program alive, allowing it to update the plot
+        sleep(1)
     sensor_thread.join()
     plt.close()
-    print("Program exited cleanly")
+    print("Program exited cleanly.")
 
